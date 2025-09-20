@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Printer, Calendar, MapPin, User, BookOpen } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Download, Printer, Calendar, MapPin, User, BookOpen, Users, GraduationCap } from "lucide-react";
 
 interface TimetableDisplayProps {
   timetable: any;
@@ -9,6 +11,9 @@ interface TimetableDisplayProps {
 }
 
 export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) => {
+  const [viewType, setViewType] = useState<'classes' | 'faculty'>('classes');
+  const [selectedItem, setSelectedItem] = useState<string>('');
+
   const handleExport = () => {
     // Implementation for exporting timetable
     console.log("Exporting timetable...");
@@ -17,6 +22,33 @@ export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) =
   const handlePrint = () => {
     window.print();
   };
+
+  // Set default selection when view type changes
+  const handleViewTypeChange = (type: 'classes' | 'faculty') => {
+    setViewType(type);
+    if (type === 'classes' && timetable?.classes?.length > 0) {
+      setSelectedItem(timetable.classes[0].id);
+    } else if (type === 'faculty' && timetable?.faculty?.length > 0) {
+      setSelectedItem(timetable.faculty[0].id);
+    }
+  };
+
+  // Initialize selection on first load
+  if (!selectedItem && viewType === 'classes' && timetable?.classes?.length > 0) {
+    setSelectedItem(timetable.classes[0].id);
+  } else if (!selectedItem && viewType === 'faculty' && timetable?.faculty?.length > 0) {
+    setSelectedItem(timetable.faculty[0].id);
+  }
+
+  const getCurrentData = () => {
+    if (viewType === 'classes') {
+      return timetable?.classes?.find((c: any) => c.id === selectedItem);
+    } else {
+      return timetable?.faculty?.find((f: any) => f.id === selectedItem);
+    }
+  };
+
+  const currentData = getCurrentData();
 
   return (
     <div className="space-y-6">
@@ -30,8 +62,63 @@ export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) =
           <div>
             <h2 className="text-2xl font-bold">Generated Timetable</h2>
             <p className="text-muted-foreground">
-              {timetable?.semester || 'Academic'} Semester • {timetable?.classes?.length || 0} Classes
+              {timetable?.semester || 'Academic'} Semester • {timetable?.classes?.length || 0} Classes • {timetable?.faculty?.length || 0} Faculty
             </p>
+          </div>
+        </div>
+
+        {/* View Selector */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex items-center space-x-4">
+            <Select value={viewType} onValueChange={handleViewTypeChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select view type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="classes">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-4 w-4" />
+                    <span>Class Timetables</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="faculty">
+                  <div className="flex items-center space-x-2">
+                    <GraduationCap className="h-4 w-4" />
+                    <span>Faculty Timetables</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {viewType === 'classes' && timetable?.classes && (
+              <Select value={selectedItem} onValueChange={setSelectedItem}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timetable.classes.map((classData: any) => (
+                    <SelectItem key={classData.id} value={classData.id}>
+                      {classData.name} - {classData.batch}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {viewType === 'faculty' && timetable?.faculty && (
+              <Select value={selectedItem} onValueChange={setSelectedItem}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Select faculty" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timetable.faculty.map((facultyMember: any) => (
+                    <SelectItem key={facultyMember.id} value={facultyMember.id}>
+                      {facultyMember.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
         
@@ -48,15 +135,24 @@ export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) =
       </div>
 
       {/* Timetable Grid */}
-      {timetable?.classes?.map((classData: any, index: number) => (
-        <Card key={index} className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/10">
+      {currentData && (
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/10">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <div className="p-2 bg-primary rounded-lg">
                 <Calendar className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span>{classData.name}</span>
-              <Badge variant="secondary">{classData.batch}</Badge>
+              {viewType === 'classes' ? (
+                <>
+                  <span>{currentData.name}</span>
+                  <Badge variant="secondary">{currentData.batch}</Badge>
+                </>
+              ) : (
+                <>
+                  <span>{currentData.name}</span>
+                  <Badge variant="secondary">Faculty</Badge>
+                </>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -82,7 +178,7 @@ export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) =
                         </div>
                       </td>
                       {timetable.workingDays?.map((day: string) => {
-                        const session = classData.schedule?.[day]?.[slotIndex];
+                        const session = currentData.schedule?.[day]?.[slotIndex];
                         return (
                           <td key={day} className="border border-border p-2">
                             {session ? (
@@ -92,14 +188,29 @@ export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) =
                                     <BookOpen className="h-3 w-3" />
                                     <span>{session.subject}</span>
                                   </div>
-                                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                    <User className="h-3 w-3" />
-                                    <span>{session.faculty}</span>
-                                  </div>
-                                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                    <MapPin className="h-3 w-3" />
-                                    <span>{session.room}</span>
-                                  </div>
+                                  {viewType === 'classes' ? (
+                                    <>
+                                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                        <User className="h-3 w-3" />
+                                        <span>{session.faculty}</span>
+                                      </div>
+                                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                        <MapPin className="h-3 w-3" />
+                                        <span>{session.room}</span>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                        <Users className="h-3 w-3" />
+                                        <span>{session.class} - {session.batch}</span>
+                                      </div>
+                                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                        <MapPin className="h-3 w-3" />
+                                        <span>{session.room}</span>
+                                      </div>
+                                    </>
+                                  )}
                                   <Badge variant="outline" className="text-xs">
                                     {session.type}
                                   </Badge>
@@ -120,7 +231,7 @@ export const TimetableDisplay = ({ timetable, onBack }: TimetableDisplayProps) =
             </div>
           </CardContent>
         </Card>
-      ))}
+      )}
 
       {/* Summary Stats */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/10">

@@ -152,11 +152,46 @@ export const generateTimetable = async (data: TimetableData): Promise<any> => {
     roomUtilization: Math.round(totalAvailableSlots > 0 ? (totalUsedSlots / totalAvailableSlots) * 100 : 0)
   };
 
+  // Generate faculty-wise timetables
+  const facultyTimetables = faculty.map(facultyMember => {
+    const schedule: any = {};
+    
+    // Initialize empty schedule for faculty
+    workingDays.forEach(day => {
+      schedule[day] = new Array(timeSlots.length).fill(null);
+    });
+
+    // Fill faculty schedule based on class schedules
+    generatedClasses.forEach(classData => {
+      workingDays.forEach(day => {
+        timeSlots.forEach((_, slotIndex) => {
+          const session = classData.schedule[day][slotIndex];
+          if (session && session.faculty === facultyMember.name) {
+            schedule[day][slotIndex] = {
+              subject: session.subject,
+              subjectCode: session.subjectCode,
+              class: classData.name,
+              batch: classData.batch,
+              room: session.room,
+              type: session.type
+            };
+          }
+        });
+      });
+    });
+
+    return {
+      ...facultyMember,
+      schedule
+    };
+  });
+
   return {
     semester: semesterName,
     workingDays,
     timeSlots,
     classes: generatedClasses,
+    faculty: facultyTimetables,
     stats,
     generatedAt: new Date().toISOString()
   };
